@@ -12,15 +12,33 @@ def sair(conexao):
     print(conexao, 'conexão fechada')
     conexao.fechar()
 
-
-def dados_recebidos(conexao, dados):
+def dados_recebidos(conexao, dados: bytes):
+    print(conexao, dados)
     if dados == b'':
         return sair(conexao)
-    print(conexao, dados)
+
+    if dados.find(b'\n') == -1: #se nao tem \n
+        conexao.residual += dados
+        return
+    elif dados.find(b'\n') != len(dados)-1: #se tem mais coisa depois do primeiro \n
+        spl = dados.split(b'\n')
+        for i in spl[:-1]:
+            dados_recebidos(conexao, i+b'\n')
+        if spl[-1]:
+            dados_recebidos(conexao, spl[-1])
+        return
+    if conexao.residual: 
+        dados = conexao.residual+dados
+    
+    if dados.startswith(b'PING'):
+        payload = dados.split (b' ')[1]
+        conexao.enviar(b':server PONG server :' + payload)
+    
 
 
 def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
+    conexao.residual = b''
     conexao.registrar_recebedor(dados_recebidos)
 
 
