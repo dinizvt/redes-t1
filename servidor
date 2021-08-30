@@ -29,11 +29,20 @@ def dados_recebidos(conexao, dados: bytes):
         return
     if conexao.residual: 
         dados = conexao.residual+dados
+        conexao.residual = b''
     
     if dados.startswith(b'PING'):
         payload = dados.split (b' ')[1]
         conexao.enviar(b':server PONG server :' + payload)
-    
+    elif dados.startswith(b'NICK'):
+        payload = dados.split (b' ')[1]
+        nickname = payload.split(b'\r')[0]
+        if validar_nome (nickname):
+            conexao.enviar(b':server 001 %s :Welcome\r\n' % nickname)
+            conexao.enviar(b':server 422 %s :MOTD File is missing\r\n' % nickname)
+        else:
+            conexao.enviar(b':server 432 * %s :Erroneous nickname\r\n' % nickname)
+        
 
 
 def conexao_aceita(conexao):
