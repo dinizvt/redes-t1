@@ -33,7 +33,12 @@ def handle_nick (conexao, dados: bytes):
         conexao.enviar(b':server 432 %s %s :Erroneous nickname\r\n' % (conexao.nick, nickname))
 
 def handle_privmsg(conexao, dados: bytes):
-    pass
+    global USERS
+    payload = dados.split(b' ')
+    destinatario = payload[1]
+    conteudo = payload[2][1:-2]
+    if destinatario.lower() in USERS:
+        USERS[destinatario.lower()].enviar(b':%s PRIVMSG %s :%s\r\n' % (conexao.nick, destinatario, conteudo))
 
 def dados_recebidos(conexao, dados: bytes):
     print(conexao, dados)
