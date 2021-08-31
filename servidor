@@ -4,7 +4,7 @@ from grader.tcp import Servidor
 import re
 
 USERS = {}
-CHANNELS: dict[bytes,list] = {}
+CHANNELS = {}
 
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
@@ -12,6 +12,14 @@ def validar_nome(nome):
 def sair(conexao):
     print(conexao, 'conexão fechada')
     conexao.fechar()
+    if conexao.nick.lower() not in USERS:
+        return
+    USERS.pop(conexao.nick.lower())
+    for users in CHANNELS.values():
+        if conexao.nick.lower() in users:
+            users.remove(conexao.nick.lower())
+            for u in users:
+                USERS[u].enviar(b':%s QUIT :Connection closed\r\n' % conexao.nick)
 
 def handle_nick (conexao, dados: bytes):
     global USERS
