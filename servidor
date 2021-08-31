@@ -69,6 +69,21 @@ def handle_join(conexao, dados: bytes):
             CHANNELS[canal.lower()].append(conexao.nick.lower())
         for user in CHANNELS[canal.lower()]:
             USERS[user].enviar(b':%s JOIN :%s\r\n' % (conexao.nick, canal))
+        user_list = sorted(CHANNELS[canal.lower()])
+        msg_base = b':server 353 %s = %s :' % (conexao.nick, canal)
+        msg = msg_base
+        for user in user_list:
+            if len (msg + user) >= 511:
+                conexao.enviar(msg[:-1]+b'\r\n')
+                print(msg[:-1]+b'\r\n')
+                msg = msg_base
+                continue
+            msg += user + b' '
+        if msg != msg_base:
+            conexao.enviar(msg[:-1]+b'\r\n')
+            print(msg[:-1]+b'\r\n')
+        conexao.enviar(b':server 366 %s %s :End of /NAMES list.\r\n' % (conexao.nick, canal))
+        
 
 def handle_part(conexao, dados: bytes):
     global USERS
