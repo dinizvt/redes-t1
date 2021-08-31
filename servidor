@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 import asyncio
-from tcp import Servidor
+from grader.tcp import Servidor
 import re
 
 USERS = {}
+CHANNELS = {}
 
 def validar_nome(nome):
     return re.match(br'^[a-zA-Z][a-zA-Z0-9_-]*$', nome) is not None
@@ -34,11 +35,32 @@ def handle_nick (conexao, dados: bytes):
 
 def handle_privmsg(conexao, dados: bytes):
     global USERS
+    global CHANNELS
     payload = dados.split(b' ')
-    destinatario = payload[1]
-    conteudo = payload[2][1:-2]
-    if destinatario.lower() in USERS:
-        USERS[destinatario.lower()].enviar(b':%s PRIVMSG %s :%s\r\n' % (conexao.nick, destinatario, conteudo))
+    dest = payload[1]
+    msg = payload[2][1:-2]
+    if dest.startswith(b'#'):
+        if dest.lower() in CHANNELS:
+            for user in CHANNELS[dest.lower()]:
+                if user != conexao.nick.lower():
+                    USERS[user].enviar(b':%s PRIVMSG %s :%s\r\n' % (conexao.nick, dest, msg))
+    else:
+        if dest.lower() in USERS:
+            USERS[dest.lower()].enviar(b':%s PRIVMSG %s :%s\r\n' % (conexao.nick, dest, msg))
+
+def handle_join(conexao, dados: bytes):
+    global USERS
+    global CHANNELS
+
+    payload = dados.split(b' ')
+    canal = payload[1].split(b'\r')[0]
+    if canal.startswith(b'#') and validar_nome(canal[1:]):
+        if canal.lower() not in CHANNELS:
+            CHANNELS[canal.lower()] = [conexao.nick.lower()]
+        else:
+            CHANNELS[canal.lower()].append(conexao.nick.lower())
+        for user in CHANNELS[canal.lower()]:
+            USERS[user].enviar(b':%s JOIN :%s\r\n' % (conexao.nick, canal))
 
 def dados_recebidos(conexao, dados: bytes):
     print(conexao, dados)
@@ -66,6 +88,8 @@ def dados_recebidos(conexao, dados: bytes):
         handle_nick(conexao, dados)
     elif dados.startswith(b'PRIVMSG'):
         handle_privmsg(conexao, dados)
+    elif dados.startswith(b'JOIN'):
+        handle_join(conexao, dados)
 
 def conexao_aceita(conexao):
     print(conexao, 'nova conexão')
